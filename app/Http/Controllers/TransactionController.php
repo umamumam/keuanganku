@@ -12,7 +12,11 @@ class TransactionController extends Controller
 {
     public function index()
     {
-        $transactions = Transaction::with('category')->latest()->get();
+        $transactions = Transaction::with('category')
+            ->where('user_id', auth()->id())
+            ->latest()
+            ->get();
+
         $categories = Category::all();
         return view('transactions.index', compact('transactions', 'categories'));
     }
@@ -27,7 +31,14 @@ class TransactionController extends Controller
             'description' => 'nullable|string'
         ]);
 
-        Transaction::create($request->all());
+        Transaction::create([
+            'user_id' => auth()->id(),
+            'category_id' => $request->category_id,
+            'type' => $request->type,
+            'amount' => $request->amount,
+            'date' => $request->date,
+            'description' => $request->description
+        ]);
 
         return redirect()->route('transactions.index')
             ->with('success', 'Transaksi berhasil ditambahkan!');
@@ -72,6 +83,7 @@ class TransactionController extends Controller
 
         // Query transaksi dengan filter
         $query = Transaction::with('category')
+            ->where('user_id', auth()->id())
             ->whereBetween('date', [$startDate, $endDate])
             ->orderBy('date', 'desc');
 

@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('transactions', function (Blueprint $table) {
             $table->id();
             $table->foreignId('category_id')->constrained();
+            $table->foreignId('user_id')->constrained();
             $table->enum('type', ['pemasukan', 'pengeluaran']);
             $table->decimal('amount', 12, 2);
             $table->date('date');

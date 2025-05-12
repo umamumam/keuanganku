@@ -6,41 +6,68 @@ use App\Models\Transaction;
 use App\Models\Category;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
 {
     public function index()
     {
-        $totalPemasukan = Transaction::where('type', 'pemasukan')->sum('amount');
-        $totalPengeluaran = Transaction::where('type', 'pengeluaran')->sum('amount');
+        $userId = Auth::id();
+
+        // Total semua waktu
+        $totalPemasukan = Transaction::where('user_id', $userId)
+            ->where('type', 'pemasukan')
+            ->sum('amount');
+
+        $totalPengeluaran = Transaction::where('user_id', $userId)
+            ->where('type', 'pengeluaran')
+            ->sum('amount');
+
         $saldo = $totalPemasukan - $totalPengeluaran;
-        $pemasukanBulanIni = Transaction::where('type', 'pemasukan')
+
+        // Data bulan ini
+        $pemasukanBulanIni = Transaction::where('user_id', $userId)
+            ->where('type', 'pemasukan')
             ->whereMonth('date', now()->month)
             ->whereYear('date', now()->year)
             ->sum('amount');
-        $pengeluaranBulanIni = Transaction::where('type', 'pengeluaran')
+
+        $pengeluaranBulanIni = Transaction::where('user_id', $userId)
+            ->where('type', 'pengeluaran')
             ->whereMonth('date', now()->month)
             ->whereYear('date', now()->year)
             ->sum('amount');
-        $pemasukanBulanLalu = Transaction::where('type', 'pemasukan')
+
+        // Data bulan lalu
+        $pemasukanBulanLalu = Transaction::where('user_id', $userId)
+            ->where('type', 'pemasukan')
             ->whereMonth('date', now()->subMonth()->month)
             ->whereYear('date', now()->subMonth()->year)
             ->sum('amount');
-        $pengeluaranBulanLalu = Transaction::where('type', 'pengeluaran')
+
+        $pengeluaranBulanLalu = Transaction::where('user_id', $userId)
+            ->where('type', 'pengeluaran')
             ->whereMonth('date', now()->subMonth()->month)
             ->whereYear('date', now()->subMonth()->year)
             ->sum('amount');
+
+        // Persentase perubahan
         $persenPemasukan = $pemasukanBulanLalu > 0 ?
             round(($pemasukanBulanIni - $pemasukanBulanLalu) / $pemasukanBulanLalu * 100, 1) : 0;
+
         $persenPengeluaran = $pengeluaranBulanLalu > 0 ?
             round(($pengeluaranBulanIni - $pengeluaranBulanLalu) / $pengeluaranBulanLalu * 100, 1) : 0;
+
         $saldoBulanLalu = ($pemasukanBulanLalu - $pengeluaranBulanLalu);
         $persenSaldo = $saldoBulanLalu != 0 ?
             round(($saldo - $saldoBulanLalu) / abs($saldoBulanLalu) * 100, 1) : 0;
+
+        // Data kategori
         $totalKategori = Category::count();
         $kategoriPemasukan = Category::where('type', 'pemasukan')->count();
         $kategoriPengeluaran = Category::where('type', 'pengeluaran')->count();
 
+        // Data bulanan untuk chart
         $currentYear = now()->year;
         $monthlyData = [
             'income' => [],
@@ -51,16 +78,19 @@ class DashboardController extends Controller
         for ($i = 1; $i <= 12; $i++) {
             $date = Carbon::create($currentYear, $i, 1);
             $monthlyData['months'][] = $date->translatedFormat('M');
-            $monthlyData['income'][] = (float) Transaction::where('type', 'pemasukan')
+            $monthlyData['income'][] = (float) Transaction::where('user_id', $userId)
+                ->where('type', 'pemasukan')
                 ->whereMonth('date', $i)
                 ->whereYear('date', $currentYear)
                 ->sum('amount');
-            $monthlyData['expense'][] = (float) Transaction::where('type', 'pengeluaran')
+            $monthlyData['expense'][] = (float) Transaction::where('user_id', $userId)
+                ->where('type', 'pengeluaran')
                 ->whereMonth('date', $i)
                 ->whereYear('date', $currentYear)
                 ->sum('amount');
         }
 
+        // Data mingguan untuk chart
         $weeklyData = [
             'income' => [],
             'expense' => [],
@@ -74,20 +104,25 @@ class DashboardController extends Controller
             $startWeek = $i == 0 ? $startOfMonth : $startOfMonth->copy()->addDays($i * $interval);
             $endWeek = $i == 3 ? $endOfMonth : $startOfMonth->copy()->addDays(($i + 1) * $interval - 1);
             $weeklyData['weeks'][] = 'Minggu ' . ($i + 1);
-            $weeklyData['income'][] = (float) Transaction::where('type', 'pemasukan')
+            $weeklyData['income'][] = (float) Transaction::where('user_id', $userId)
+                ->where('type', 'pemasukan')
                 ->whereBetween('date', [$startWeek, $endWeek])
                 ->sum('amount');
-            $weeklyData['expense'][] = (float) Transaction::where('type', 'pengeluaran')
+            $weeklyData['expense'][] = (float) Transaction::where('user_id', $userId)
+                ->where('type', 'pengeluaran')
                 ->whereBetween('date', [$startWeek, $endWeek])
                 ->sum('amount');
         }
+
+        // Data harian untuk chart pengeluaran
         $dailyExpensesData = [];
         $today = Carbon::today();
         for ($i = 6; $i >= 0; $i--) {
             $date = $today->copy()->subDays($i);
             $dayName = $date->translatedFormat('D');
             $formattedDate = $date->format('d M');
-            $amount = (float) Transaction::where('type', 'pengeluaran')
+            $amount = (float) Transaction::where('user_id', $userId)
+                ->where('type', 'pengeluaran')
                 ->whereDate('date', $date->format('Y-m-d'))
                 ->sum('amount');
             $dailyExpensesData[] = [
@@ -97,7 +132,9 @@ class DashboardController extends Controller
                 'full_date' => $date->format('Y-m-d')
             ];
         }
+
         $weeklyTotalExpense = array_sum(array_column($dailyExpensesData, 'amount'));
+
         return view('dashboard', compact(
             'totalPemasukan',
             'totalPengeluaran',
