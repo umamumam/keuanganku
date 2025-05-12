@@ -81,7 +81,23 @@ class DashboardController extends Controller
                 ->whereBetween('date', [$startWeek, $endWeek])
                 ->sum('amount');
         }
-
+        $dailyExpensesData = [];
+        $today = Carbon::today();
+        for ($i = 6; $i >= 0; $i--) {
+            $date = $today->copy()->subDays($i);
+            $dayName = $date->translatedFormat('D');
+            $formattedDate = $date->format('d M');
+            $amount = (float) Transaction::where('type', 'pengeluaran')
+                ->whereDate('date', $date->format('Y-m-d'))
+                ->sum('amount');
+            $dailyExpensesData[] = [
+                'day' => $dayName,
+                'date' => $formattedDate,
+                'amount' => $amount,
+                'full_date' => $date->format('Y-m-d')
+            ];
+        }
+        $weeklyTotalExpense = array_sum(array_column($dailyExpensesData, 'amount'));
         return view('dashboard', compact(
             'totalPemasukan',
             'totalPengeluaran',
@@ -96,7 +112,9 @@ class DashboardController extends Controller
             'kategoriPemasukan',
             'kategoriPengeluaran',
             'monthlyData',
-            'weeklyData'
+            'weeklyData',
+            'dailyExpensesData',
+            'weeklyTotalExpense'
         ));
     }
 }

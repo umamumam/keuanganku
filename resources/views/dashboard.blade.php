@@ -127,18 +127,116 @@
             </div>
         </div>
     </div>
-    <div class="col-md-12 col-xl-4">
-        <h5 class="mb-3">Income Overview</h5>
+    <div class="col-md-12 col-xl-4 mt-3">
+        <h5 class="mb-3">Pengeluaran Mingguan</h5>
         <div class="card">
             <div class="card-body">
-                <h6 class="mb-2 f-w-400 text-muted">This Week Statistics</h6>
-                <h3 class="mb-3">$7,650</h3>
-                <div id="income-overview-chart"></div>
+                <h6 class="mb-2 f-w-400 text-muted">Detail Pengeluaran 7 Hari Terakhir</h6>
+                <h3 class="mb-3">Rp {{ number_format($weeklyTotalExpense, 0, ',', '.') }}</h3>
+                <div id="expense-daily-chart"></div>
+                <div class="mt-4">
+                    @foreach($dailyExpensesData as $data)
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                            <span class="d-block font-weight-bold">{{ $data['day'] }}</span>
+                            <small class="text-muted">{{ $data['date'] }}</small>
+                        </div>
+                        <div>
+                            <span class="font-weight-bold @if($data['amount'] > 0) text-danger @else text-muted @endif">
+                                Rp {{ number_format($data['amount'], 0, ',', '.') }}
+                            </span>
+                        </div>
+                    </div>
+                    @endforeach
+                </div>
             </div>
         </div>
     </div>
+    <script>
+        (function () {
+        var dailyData = @json($dailyExpensesData);
+        var categories = dailyData.map(item => item.day + '\n' + item.date);
+        var amounts = dailyData.map(item => item.amount);
+        var fullDates = dailyData.map(item => item.full_date);
 
-    <div class="col-md-12 col-xl-8">
+        var options = {
+            chart: {
+                type: 'bar',
+                height: 280,
+                toolbar: { show: false }
+            },
+            series: [{
+                name: 'Pengeluaran',
+                data: amounts
+            }],
+            colors: ['#ff4d4f'],
+            plotOptions: {
+                bar: {
+                    columnWidth: '45%',
+                    borderRadius: 8,
+                    dataLabels: {
+                        position: 'top'
+                    }
+                }
+            },
+            dataLabels: {
+                enabled: true,
+                formatter: function(val) {
+                    return val > 0 ? 'Rp' + Math.round(val).toLocaleString('id-ID') : '';
+                },
+                offsetY: -20,
+                style: {
+                    fontSize: '12px',
+                    colors: ['#ff4d4f']
+                }
+            },
+            xaxis: {
+                categories: categories,
+                axisBorder: { show: false },
+                axisTicks: { show: false },
+                labels: {
+                    style: {
+                        fontSize: '12px'
+                    }
+                },
+                tooltip: {
+                    enabled: false
+                }
+            },
+            yaxis: {
+                show: false,
+                max: function(max) {
+                    return max * 1.2;
+                }
+            },
+            grid: {
+                show: false
+            },
+            tooltip: {
+                custom: function({ series, seriesIndex, dataPointIndex, w }) {
+                    return `
+                    <div class="apex-tooltip">
+                        <div class="font-weight-bold">${fullDates[dataPointIndex]}</div>
+                        <div class="text-danger">Pengeluaran: Rp${series[seriesIndex][dataPointIndex].toLocaleString('id-ID')}</div>
+                    </div>
+                    `;
+                }
+            },
+            annotations: {
+                yaxis: [{
+                    y: 0,
+                    borderColor: '#e0e0e0',
+                    strokeDashArray: 0
+                }]
+            }
+        };
+
+        var chart = new ApexCharts(document.querySelector("#expense-daily-chart"), options);
+        chart.render();
+    })();
+    </script>
+
+    {{-- <div class="col-md-12 col-xl-8">
         <h5 class="mb-3">Recent Orders</h5>
         <div class="card tbl-card">
             <div class="card-body">
@@ -337,7 +435,7 @@
                 </a>
             </div>
         </div>
-    </div>
+    </div> --}}
 </div>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
